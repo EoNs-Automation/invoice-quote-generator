@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Invoice / Quote Generator | EoNs Automation</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, Arial, sans-serif;
+            max-width: 700px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #121212;
+            color: #e0e0e0;
+        }
+        h1 {
+            text-align: center;
+            color: #fff;
+            margin-bottom: 6px;
+        }
+        .subtitle {
+            text-align: center;
+            color: #888;
+            font-size: 14px;
+            margin-bottom: 25px;
+        }
+        label {
+            display: block;
+            margin-bottom: 6px;
+            color: #bbb;
+            font-weight: 600;
+        }
+        input, select, textarea {
+            width: 100%;
+            padding: 11px;
+            border-radius: 8px;
+            border: 1px solid #444;
+            background: #1e1e1e;
+            color: white;
+            font-size: 15px;
+            box-sizing: border-box;
+            margin-bottom: 14px;
+        }
+        .row {
+            display: flex;
+            gap: 12px;
+        }
+        .row > div {
+            flex: 1;
+        }
+        button {
+            padding: 12px 16px;
+            border: none;
+            border-radius: 8px;
+            background: #1565c0;
+            color: white;
+            font-size: 15px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-right: 8px;
+            margin-bottom: 10px;
+        }
+        button:hover {
+            background: #0d47a1;
+        }
+        .secondary {
+            background: #333;
+        }
+        .secondary:hover {
+            background: #444;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            margin-bottom: 15px;
+        }
+        th, td {
+            border: 1px solid #333;
+            padding: 10px;
+            text-align: left;
+        }
+        th {
+            background: #1e1e1e;
+            color: #bbb;
+        }
+        .totals {
+            text-align: right;
+            margin-top: 10px;
+            font-size: 16px;
+        }
+        .totals div {
+            margin-bottom: 6px;
+        }
+        #preview {
+            background: #1e1e1e;
+            border: 1px solid #333;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 25px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            display: none;
+        }
+        .item-row {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 8px;
+            align-items: center;
+        }
+        .item-row input {
+            margin-bottom: 0;
+        }
+        .item-row .desc { flex: 3; }
+        .item-row .qty { flex: 1; }
+        .item-row .price { flex: 1; }
+        .remove-btn {
+            background: #c62828;
+            padding: 8px 12px;
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Invoice / Quote Generator</h1>
+    <p class="subtitle">EoNs Automation</p>
+
+    <div class="row">
+        <div>
+            <label>Document Type</label>
+            <select id="docType">
+                <option value="INVOICE">Invoice</option>
+                <option value="QUOTE">Quote</option>
+            </select>
+        </div>
+        <div>
+            <label>Document Number</label>
+            <input type="text" id="docNumber" value="001">
+        </div>
+    </div>
+
+    <div class="row">
+        <div>
+            <label>Business Name</label>
+            <input type="text" id="businessName" placeholder="Your Business Name">
+        </div>
+        <div>
+            <label>Client Name</label>
+            <input type="text" id="clientName" placeholder="Client Name">
+        </div>
+    </div>
+
+    <label>Items</label>
+    <div id="itemsContainer">
+        <div class="item-row">
+            <input class="desc" type="text" placeholder="Description">
+            <input class="qty" type="number" placeholder="Qty" value="1" min="1">
+            <input class="price" type="number" placeholder="Price" step="0.01" min="0">
+        </div>
+    </div>
+    <button class="secondary" onclick="addItem()">+ Add Item</button>
+
+    <div class="row" style="margin-top:15px;">
+        <div>
+            <label>Tax Rate (%)</label>
+            <input type="number" id="taxRate" value="0" step="0.1" min="0">
+        </div>
+        <div>
+            <label>Notes (optional)</label>
+            <input type="text" id="notes" placeholder="Thank you for your business">
+        </div>
+    </div>
+
+    <button onclick="generateDocument()">Generate</button>
+    <button class="secondary" onclick="downloadDocument()">Download as Text</button>
+
+    <div id="preview"></div>
+
+    <script>
+        function addItem() {
+            const container = document.getElementById("itemsContainer");
+            const row = document.createElement("div");
+            row.className = "item-row";
+            row.innerHTML = `
+                <input class="desc" type="text" placeholder="Description">
+                <input class="qty" type="number" placeholder="Qty" value="1" min="1">
+                <input class="price" type="number" placeholder="Price" step="0.01" min="0">
+                <button class="remove-btn" onclick="this.parentElement.remove()">X</button>
+            `;
+            container.appendChild(row);
+        }
+
+        function generateDocument() {
+            const docType = document.getElementById("docType").value;
+            const docNumber = document.getElementById("docNumber").value || "001";
+            const businessName = document.getElementById("businessName").value || "Your Business";
+            const clientName = document.getElementById("clientName").value || "Client";
+            const taxRate = parseFloat(document.getElementById("taxRate").value) || 0;
+            const notes = document.getElementById("notes").value;
+            const today = new Date().toISOString().split("T")[0];
+
+            const itemRows = document.querySelectorAll(".item-row");
+            let items = [];
+            let subtotal = 0;
+
+            itemRows.forEach(row => {
+                const desc = row.querySelector(".desc").value.trim();
+                const qty = parseFloat(row.querySelector(".qty").value) || 0;
+                const price = parseFloat(row.querySelector(".price").value) || 0;
+                if (desc && qty > 0 && price >= 0) {
+                    const total = qty * price;
+                    items.push({ desc, qty, price, total });
+                    subtotal += total;
+                }
+            });
+
+            if (items.length === 0) {
+                alert("Please add at least one item.");
+                return;
+            }
+
+            const taxAmount = subtotal * (taxRate / 100);
+            const grandTotal = subtotal + taxAmount;
+
+            let output = "";
+            output += "=======================================================\n";
+            output += businessName.toUpperCase() + "\n";
+            output += "=======================================================\n";
+            output += `${docType} #: ${docNumber}\n`;
+            output += `Date: ${today}\n`;
+            output += `Client: ${clientName}\n`;
+            output += "-------------------------------------------------------\n";
+            output += "Item                          Qty    Price     Total\n";
+            output += "-------------------------------------------------------\n";
+
+            items.forEach(item => {
+                const d = item.desc.substring(0, 27).padEnd(28);
+                const q = item.qty.toFixed(1).padStart(6);
+                const p = item.price.toFixed(2).padStart(8);
+                const t = item.total.toFixed(2).padStart(9);
+                output += `${d}${q}${p}${t}\n`;
+            });
+
+            output += "-------------------------------------------------------\n";
+            output += `Subtotal:                                $${subtotal.toFixed(2).padStart(8)}\n`;
+            if (taxRate > 0) {
+                output += `Tax (${taxRate}%):                              $${taxAmount.toFixed(2).padStart(8)}\n`;
+            }
+            output += `TOTAL:                                   $${grandTotal.toFixed(2).padStart(8)}\n`;
+            output += "=======================================================\n";
+
+            if (notes) {
+                output += `\nNotes: ${notes}`;
+            }
+
+            const preview = document.getElementById("preview");
+            preview.style.display = "block";
+            preview.textContent = output;
+        }
+
+        function downloadDocument() {
+            const preview = document.getElementById("preview");
+            if (!preview.textContent) {
+                alert("Generate a document first.");
+                return;
+            }
+
+            const docType = document.getElementById("docType").value.toLowerCase();
+            const docNumber = document.getElementById("docNumber").value || "001";
+            const clientName = (document.getElementById("clientName").value || "client").replace(/\s+/g, "_");
+
+            const blob = new Blob([preview.textContent], { type: "text/plain" });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = `${docType}-${docNumber}-${clientName}.txt`;
+            link.click();
+        }
+    </script>
+
+</body>
+</html>
