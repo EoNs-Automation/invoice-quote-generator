@@ -17,6 +17,9 @@ A simple tool for creating professional invoices and quotes.
 
 [Try the web version here](https://invoice-quote-generator-164.netlify.app/)
 
+Also in the EoNs Tools Hub:
+https://tool-hub-f5b755.netlify.app/
+
 ## How to Use (Python)
 
 1. Run the script
